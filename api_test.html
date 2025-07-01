@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Multi-Tenant Time Tracking System API Test</h1>
+    
+    <div>
+        <h2>Login</h2>
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" value="owner">
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="owner123">
+        </div>
+        <button onclick="login()">Login</button>
+    </div>
+    
+    <div>
+        <h2>API Tests</h2>
+        <button onclick="getCompanies()">Get Companies</button>
+        <button onclick="createCompany()">Create Company</button>
+        <button onclick="getMe()">Get Current User</button>
+    </div>
+    
+    <div>
+        <h2>Results</h2>
+        <pre id="results">Results will appear here...</pre>
+    </div>
+    
+    <script>
+        let token = '';
+        const baseUrl = 'http://localhost:8001/api';
+        
+        function showResult(data) {
+            document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${baseUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    token = data.access_token;
+                    showResult({ 
+                        message: 'Login successful', 
+                        token: token.substring(0, 10) + '...',
+                        user: data.user
+                    });
+                } else {
+                    showResult({ error: data.detail || 'Login failed' });
+                }
+            } catch (error) {
+                showResult({ error: error.message });
+            }
+        }
+        
+        async function getCompanies() {
+            if (!token) {
+                showResult({ error: 'Please login first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/owner/companies`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(data);
+                } else {
+                    showResult({ error: data.detail || 'Failed to get companies' });
+                }
+            } catch (error) {
+                showResult({ error: error.message });
+            }
+        }
+        
+        async function createCompany() {
+            if (!token) {
+                showResult({ error: 'Please login first' });
+                return;
+            }
+            
+            const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').substring(8, 14);
+            const companyData = {
+                name: `Test Company ${timestamp}`,
+                admin_username: `admin${timestamp}`,
+                admin_email: `admin${timestamp}@test.com`,
+                admin_password: 'admin123'
+            };
+            
+            try {
+                const response = await fetch(`${baseUrl}/owner/companies`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(companyData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(data);
+                } else {
+                    showResult({ error: data.detail || 'Failed to create company' });
+                }
+            } catch (error) {
+                showResult({ error: error.message });
+            }
+        }
+        
+        async function getMe() {
+            if (!token) {
+                showResult({ error: 'Please login first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(data);
+                } else {
+                    showResult({ error: data.detail || 'Failed to get user info' });
+                }
+            } catch (error) {
+                showResult({ error: error.message });
+            }
+        }
+    </script>
+</body>
+</html>
